@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, DollarSign, Target, TrendingUp, Wallet, Lightbulb } from 'lucide-react';
+import { Settings, DollarSign, Target, TrendingUp, Wallet, Lightbulb, Repeat } from 'lucide-react';
 import { CURRENCIES, DEFAULT_PAYOUT, suggestBaseAmount, calculateSeriesCost, formatCurrency } from '../utils/calculator';
 
 const SetupForm = ({ onStart }) => {
@@ -9,6 +9,7 @@ const SetupForm = ({ onStart }) => {
     const [capital, setCapital] = useState(1000);
     const [payout, setPayout] = useState(DEFAULT_PAYOUT * 100);
     const [maxSteps, setMaxSteps] = useState(8);
+    const [isManualAmount, setIsManualAmount] = useState(false);
 
     useEffect(() => {
         // Update base amount default when currency changes
@@ -16,21 +17,29 @@ const SetupForm = ({ onStart }) => {
         if (baseAmount < min) setBaseAmount(min);
     }, [currency]);
 
-    const handleSuggestion = () => {
-        const payoutRate = payout / 100;
+    const handleSuggestion = (force = false) => {
+        if (isManualAmount && !force) return;
+
+        const payoutRate = Number(payout) / 100;
         const min = CURRENCIES[currency].minAmount;
 
-        let suggested = suggestBaseAmount(capital, targetGoal, payoutRate, maxSteps);
+        let suggested = suggestBaseAmount(Number(capital), Number(targetGoal), payoutRate, Number(maxSteps));
         if (suggested < min) suggested = min;
 
         // Check if even min is safe?
-        const cost = calculateSeriesCost(suggested, payoutRate, maxSteps);
-        if (cost > capital) {
-            alert(`Warning: Your capital (${formatCurrency(capital, currency)}) is not enough for even the minimum series cost (${formatCurrency(cost, currency)}) at ${maxSteps} steps.`);
+        const cost = calculateSeriesCost(suggested, payoutRate, Number(maxSteps));
+        if (cost > capital && force) {
+            alert(`Warning: Your capital (${formatCurrency(capital, currency)}) is not enough for the calculated series cost (${formatCurrency(cost, currency)}).`);
         }
 
         setBaseAmount(suggested);
+        if (force) setIsManualAmount(false);
     };
+
+    // Auto-suggest when inputs change, unless manually edited
+    useEffect(() => {
+        handleSuggestion();
+    }, [capital, targetGoal, maxSteps, payout, currency]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -46,6 +55,10 @@ const SetupForm = ({ onStart }) => {
 
     const currentSeriesCost = calculateSeriesCost(Number(baseAmount), Number(payout) / 100, maxSteps);
     const isRisky = currentSeriesCost > capital;
+
+    const payoutRate = Number(payout) / 100;
+    const sessionProfit = Number(baseAmount) * payoutRate;
+    const sessionsNeeded = sessionProfit > 0 ? Math.ceil(Number(targetGoal) / sessionProfit) : 0;
 
     return (
         <div className="w-full max-w-md p-8 glass-panel rounded-2xl animate-fade-in relative">
@@ -96,19 +109,30 @@ const SetupForm = ({ onStart }) => {
                     </div>
                 </div>
 
-                {/* Target Goal */}
-                <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-300">Daily Profit Target</label>
-                    <div className="relative">
-                        <Target className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="number"
-                            min="1"
-                            value={targetGoal}
-                            onChange={(e) => setTargetGoal(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 glass-input rounded-xl"
-                            required
-                        />
+                {/* Target Goal & Sessions */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-300">Daily Profit Target</label>
+                        <div className="relative">
+                            <Target className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                                type="number"
+                                min="1"
+                                value={targetGoal}
+                                onChange={(e) => setTargetGoal(e.target.value)}
+                                className="w-full pl-10 pr-4 py-3 glass-input rounded-xl"
+                                required
+                            />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-300">Sessions Needed</label>
+                        <div className="relative">
+                            <Repeat className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400" />
+                            <div className="w-full pl-10 pr-4 py-3 glass-input rounded-xl bg-slate-900/40 text-white font-bold flex items-center">
+                                {sessionsNeeded}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -116,7 +140,7 @@ const SetupForm = ({ onStart }) => {
                 <div className="space-y-2">
                     <div className="flex justify-between items-center">
                         <label className="text-sm font-medium text-slate-300">Base Trade Amount</label>
-                        <button type="button" onClick={handleSuggestion} className="text-xs text-cyan-400 flex items-center gap-1 hover:underline">
+                        <button type="button" onClick={() => handleSuggestion(true)} className="text-xs text-cyan-400 flex items-center gap-1 hover:underline">
                             <Lightbulb className="w-3 h-3" /> Suggest Safe Amount
                         </button>
                     </div>
@@ -126,7 +150,10 @@ const SetupForm = ({ onStart }) => {
                             type="number"
                             min={CURRENCIES[currency].minAmount}
                             value={baseAmount}
-                            onChange={(e) => setBaseAmount(e.target.value)}
+                            onChange={(e) => {
+                                setBaseAmount(e.target.value);
+                                setIsManualAmount(true);
+                            }}
                             className={`w-full pl-10 pr-4 py-3 glass-input rounded-xl ${isRisky ? 'border-red-500 text-red-100' : ''}`}
                             required
                         />
