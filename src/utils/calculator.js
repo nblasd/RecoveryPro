@@ -43,21 +43,45 @@ export function calculateSeriesCost(baseAmount, payout, maxSteps = MAX_STEPS) {
   return totalInvestment;
 }
 
-export function suggestBaseAmount(capital, targetGoal, payout, maxSteps = MAX_STEPS) {
-  // Simplification: Check safety of a proposed amount.
-  const isSafe = (amount) => calculateSeriesCost(amount, payout, maxSteps) <= capital; 
+export function suggestBaseAmount(capitalInput, targetGoalInput, payoutInput, maxStepsInput = MAX_STEPS) {
+  const capital = Number(capitalInput);
+  const targetGoal = Number(targetGoalInput);
+  const payout = Number(payoutInput);
+  const maxSteps = Number(maxStepsInput);
 
-  // 1. Goal-based suggestion (aim for ~30 sessions)
-  let suggested = targetGoal / (30 * payout);
+  if (isNaN(capital) || isNaN(targetGoal) || isNaN(payout) || capital <= 0) return 1;
+
+  // 1. Calculate the cost factor for this strategy (how much capital is needed per $1 of base bet)
+  const costPerUnit = calculateSeriesCost(1, payout, maxSteps);
   
+  // 2. Determine an absolute ceiling (safety limit)
+  // We want to risk no more than 70% of capital for a single session series
+  const maxSafeBase = (capital * 0.7) / costPerUnit;
+
+  // 3. Determine an efficiency target
+  // Aim to reach the goal in about 20-50 sessions for a good balance
+  // Goal = Sessions * (BaseAmount * Payout) 
+  // BaseAmount = Goal / (Sessions * Payout)
+  const targetSessions = 40;
+  const efficientBase = targetGoal / (targetSessions * payout);
+
+  // 4. Determine a "Fast" target (10 sessions) but cap it at the safe limit
+  const fastBase = targetGoal / (10 * payout);
+
+  // 5. Select the best amount
+  // We prefer the efficientBase, but if it's too risky, we use maxSafeBase.
+  // If efficientBase is tiny, we might scale up toward fastBase if it's still safe.
+  let suggested = Math.min(efficientBase, maxSafeBase);
+  
+  // If we have huge capital surplus, we can safely go faster
+  if (fastBase < maxSafeBase * 0.8) {
+    suggested = Math.max(suggested, Math.min(fastBase, maxSafeBase * 0.5));
+  }
+
+  // 6. Round and Clamp
   suggested = Math.floor(suggested);
   if (suggested < 1) suggested = 1;
 
-  // 2. Clamp to Safety
-  while (!isSafe(suggested) && suggested > 0) {
-    suggested--;
-  }
-  
   return suggested;
 }
 

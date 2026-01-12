@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { calculateTradeSeries, calculateSessionsNeeded, formatCurrency, MAX_STEPS } from '../utils/calculator';
-import { Target, TrendingUp, AlertTriangle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Target, TrendingUp, AlertTriangle, CheckCircle, XCircle, RefreshCw, Copy, Check } from 'lucide-react';
 
 const Dashboard = ({ config, onReset }) => {
     const [currentSession, setCurrentSession] = useState(1);
     const [currentStep, setCurrentStep] = useState(0);
     const [currentProfit, setCurrentProfit] = useState(0);
     const [history, setHistory] = useState([]); // { session, result: 'WIN'|'BUST', profit }
+    const [copied, setCopied] = useState(false);
 
     const { trades, sessionProfit, totalInvestment } = useMemo(() =>
         calculateTradeSeries(config.baseAmount, config.payout, config.maxSteps),
@@ -43,6 +44,12 @@ const Dashboard = ({ config, onReset }) => {
             setCurrentSession(s => s + 1);
             setCurrentStep(0);
         }
+    };
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(currentTradeAmount.toString());
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
     };
 
     const isGoalReached = currentProfit >= config.targetGoal;
@@ -112,14 +119,35 @@ const Dashboard = ({ config, onReset }) => {
                             </span>
                         </div>
 
-                        <div className="mb-12">
+                        <div className="mb-12 relative group">
                             <p className="text-slate-400 text-sm uppercase tracking-widest mb-2">Investment Amount</p>
-                            <div className="text-7xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-slate-400 tracking-tighter">
-                                {formatCurrency(currentTradeAmount, config.currency)}
+                            <div className="flex items-center justify-center gap-4">
+                                <div
+                                    className="text-7xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-slate-400 tracking-tighter cursor-pointer select-none active:scale-95 transition-transform"
+                                    onClick={handleCopy}
+                                    title="Click to copy"
+                                >
+                                    {formatCurrency(currentTradeAmount, config.currency)}
+                                </div>
+                                <button
+                                    onClick={handleCopy}
+                                    className={`p-3 rounded-xl border transition-all duration-300 ${copied
+                                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 scale-110'
+                                            : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:border-cyan-500 hover:text-cyan-400 hover:bg-cyan-500/10'
+                                        }`}
+                                    title="Copy to clipboard"
+                                >
+                                    {copied ? <Check className="w-6 h-6" /> : <Copy className="w-6 h-6" />}
+                                </button>
                             </div>
-                            <p className="text-xs text-slate-500 mt-2">
+                            <p className="text-xs text-slate-500 mt-4">
                                 Potential Payout: <span className="text-emerald-400">{formatCurrency(currentTradeAmount * (1 + config.payout), config.currency)}</span>
                             </p>
+                            {copied && (
+                                <div className="absolute top-0 right-0 animate-bounce text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full border border-emerald-500/20">
+                                    COPIED!
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-6">
