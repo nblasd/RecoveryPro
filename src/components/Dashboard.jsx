@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { calculateTradeSeries, calculateSessionsNeeded, formatCurrency, MAX_STEPS } from '../utils/calculator';
-import { Target, TrendingUp, AlertTriangle, CheckCircle, XCircle, RefreshCw, Copy, Check } from 'lucide-react';
+import { Target, TrendingUp, AlertTriangle, CheckCircle, XCircle, RefreshCw, Copy, Check, Wallet } from 'lucide-react';
 
 const Dashboard = ({ config, onReset }) => {
     const [currentSession, setCurrentSession] = useState(1);
@@ -8,6 +8,7 @@ const Dashboard = ({ config, onReset }) => {
     const [currentProfit, setCurrentProfit] = useState(0);
     const [history, setHistory] = useState([]); // { session, result: 'WIN'|'BUST', profit }
     const [copied, setCopied] = useState(false);
+    const [balance, setBalance] = useState(config.capital);
 
     const { trades, sessionProfit, totalInvestment } = useMemo(() =>
         calculateTradeSeries(config.baseAmount, config.payout, config.maxSteps),
@@ -19,9 +20,13 @@ const Dashboard = ({ config, onReset }) => {
 
     const handleWin = () => {
         // A win completes the session with the target profit
-        const newProfit = currentProfit + sessionProfit;
+        const winProfit = currentTradeAmount * config.payout;
+        setBalance(prev => prev + winProfit);
+
+        const sessionResultProfit = sessionProfit; // The logic: a win at any step gives the session profit
+        const newProfit = currentProfit + sessionResultProfit;
         setCurrentProfit(newProfit);
-        setHistory(prev => [{ session: currentSession, result: 'WIN', profit: sessionProfit }, ...prev]);
+        setHistory(prev => [{ session: currentSession, result: 'WIN', profit: sessionResultProfit }, ...prev]);
 
         // Reset for next session
         setCurrentSession(s => s + 1);
@@ -29,18 +34,19 @@ const Dashboard = ({ config, onReset }) => {
     };
 
     const handleLoss = () => {
+        setBalance(prev => prev - currentTradeAmount);
+
         if (currentStep < config.maxSteps - 1) {
             // Just move to next step
             setCurrentStep(s => s + 1);
         } else {
             // BUST: Lost all steps
-            // Loss is total sum of all trades in series
             const lossAmount = trades.reduce((a, b) => a + b, 0);
             const newProfit = currentProfit - lossAmount;
             setCurrentProfit(newProfit);
             setHistory(prev => [{ session: currentSession, result: 'BUST', profit: -lossAmount }, ...prev]);
 
-            // Reset for next session (painful one)
+            // Reset for next session
             setCurrentSession(s => s + 1);
             setCurrentStep(0);
         }
@@ -79,6 +85,28 @@ const Dashboard = ({ config, onReset }) => {
                             ? Math.round((history.filter(h => h.result === 'WIN').length / history.length) * 100) + '%'
                             : '-'}
                     </span>
+                </div>
+            </div>
+
+            {/* Real Balance Section */}
+            <div className="glass-panel p-6 rounded-2xl border border-white/5 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/30 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
+                        <Wallet className="w-6 h-6 text-indigo-400" />
+                    </div>
+                    <div>
+                        <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Real Balance</p>
+                        <h2 className="text-3xl font-black text-white tracking-tighter">
+                            {formatCurrency(balance, config.currency)}
+                        </h2>
+                    </div>
+                </div>
+                <div className="text-right">
+                    <p className="text-xs text-slate-500 mb-1">Session Target</p>
+                    <div className="flex items-center gap-2 justify-end">
+                        <span className="text-emerald-400 font-bold">+{formatCurrency(sessionProfit, config.currency)}</span>
+                        <TrendingUp className="w-4 h-4 text-emerald-500" />
+                    </div>
                 </div>
             </div>
 
@@ -132,8 +160,8 @@ const Dashboard = ({ config, onReset }) => {
                                 <button
                                     onClick={handleCopy}
                                     className={`p-3 rounded-xl border transition-all duration-300 ${copied
-                                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 scale-110'
-                                            : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:border-cyan-500 hover:text-cyan-400 hover:bg-cyan-500/10'
+                                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 scale-110'
+                                        : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:border-cyan-500 hover:text-cyan-400 hover:bg-cyan-500/10'
                                         }`}
                                     title="Copy to clipboard"
                                 >

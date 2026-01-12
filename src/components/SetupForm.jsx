@@ -100,7 +100,8 @@ const SetupForm = ({ onStart }) => {
                         <Wallet className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                             type="number"
-                            min="1"
+                            min="0"
+                            step="any"
                             value={capital}
                             onChange={(e) => setCapital(e.target.value)}
                             className="w-full pl-10 pr-4 py-3 glass-input rounded-xl"
@@ -117,7 +118,8 @@ const SetupForm = ({ onStart }) => {
                             <Target className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input
                                 type="number"
-                                min="1"
+                                min="0"
+                                step="any"
                                 value={targetGoal}
                                 onChange={(e) => setTargetGoal(e.target.value)}
                                 className="w-full pl-10 pr-4 py-3 glass-input rounded-xl"
@@ -149,6 +151,7 @@ const SetupForm = ({ onStart }) => {
                         <input
                             type="number"
                             min={CURRENCIES[currency].minAmount}
+                            step="any"
                             value={baseAmount}
                             onChange={(e) => {
                                 setBaseAmount(e.target.value);
@@ -160,7 +163,7 @@ const SetupForm = ({ onStart }) => {
                     </div>
                     {isRisky && (
                         <p className="text-xs text-red-400 mt-1">
-                            ⚠️ Risk Warning: 8 consecutive losses will exceed your capital ({formatCurrency(currentSeriesCost, currency)} required).
+                            ⚠️ Risk Warning: {maxSteps} consecutive losses will exceed your capital ({formatCurrency(currentSeriesCost, currency)} required).
                         </p>
                     )}
                     {!isRisky && currentSeriesCost > 0 && (
@@ -168,6 +171,24 @@ const SetupForm = ({ onStart }) => {
                             ✓ Max session drawdown: {formatCurrency(currentSeriesCost, currency)}
                         </p>
                     )}
+                </div>
+
+                {/* Payout Selection */}
+                <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-300">Payout Percentage (%)</label>
+                    <div className="relative">
+                        <TrendingUp className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            step="any"
+                            value={payout}
+                            onChange={(e) => setPayout(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 glass-input rounded-xl"
+                            required
+                        />
+                    </div>
                 </div>
 
                 {/* Strategy Limit */}
