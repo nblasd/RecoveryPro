@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { calculateTradeSeries, calculateSessionsNeeded, formatCurrency, MAX_STEPS } from '../utils/calculator';
-import { Target, TrendingUp, AlertTriangle, CheckCircle, XCircle, RefreshCw, Copy, Check, Wallet } from 'lucide-react';
+import { Target, TrendingUp, AlertTriangle, CheckCircle, XCircle, Edit2, Copy, Check, Wallet } from 'lucide-react';
 
 const Dashboard = ({ config, onReset }) => {
     const [currentSession, setCurrentSession] = useState(1);
@@ -9,6 +9,8 @@ const Dashboard = ({ config, onReset }) => {
     const [history, setHistory] = useState([]); // { session, result: 'WIN'|'BUST', profit }
     const [copied, setCopied] = useState(false);
     const [balance, setBalance] = useState(config.capital);
+    const [isEditingBalance, setIsEditingBalance] = useState(false);
+    const [editedBalance, setEditedBalance] = useState(config.capital);
 
     const { trades, sessionProfit, totalInvestment } = useMemo(() =>
         calculateTradeSeries(config.baseAmount, config.payout, config.maxSteps),
@@ -50,6 +52,18 @@ const Dashboard = ({ config, onReset }) => {
             setCurrentSession(s => s + 1);
             setCurrentStep(0);
         }
+    };
+
+    const handleSaveBalance = () => {
+        const newBalance = parseFloat(editedBalance);
+        if (isNaN(newBalance)) return;
+
+        setBalance(newBalance);
+        // Calculate the new profit based on the original capital
+        // currentProfit = currentBalance - original capital
+        const newProfit = newBalance - config.capital;
+        setCurrentProfit(newProfit);
+        setIsEditingBalance(false);
     };
 
     const handleCopy = () => {
@@ -96,9 +110,49 @@ const Dashboard = ({ config, onReset }) => {
                     </div>
                     <div>
                         <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Real Balance</p>
-                        <h2 className="text-3xl font-black text-white tracking-tighter">
-                            {formatCurrency(balance, config.currency)}
-                        </h2>
+                        {isEditingBalance ? (
+                            <div className="flex items-center gap-2 mt-1">
+                                <input
+                                    type="number"
+                                    value={editedBalance}
+                                    onChange={(e) => setEditedBalance(e.target.value)}
+                                    className="bg-slate-800 border border-indigo-500/50 text-white text-xl font-bold px-3 py-1 rounded-lg w-32 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveBalance();
+                                        if (e.key === 'Escape') setIsEditingBalance(false);
+                                    }}
+                                />
+                                <button
+                                    onClick={handleSaveBalance}
+                                    className="p-2 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-lg transition-colors"
+                                >
+                                    <Check className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => setIsEditingBalance(false)}
+                                    className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors"
+                                >
+                                    <XCircle className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-3">
+                                <h2 className="text-3xl font-black text-white tracking-tighter">
+                                    {formatCurrency(balance, config.currency)}
+                                </h2>
+                                <button
+                                    onClick={() => {
+                                        setEditedBalance(balance);
+                                        setIsEditingBalance(true);
+                                    }}
+                                    className="p-1.5 text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-all"
+                                    title="Edit Balance"
+                                >
+                                    <Edit2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className="text-right">
